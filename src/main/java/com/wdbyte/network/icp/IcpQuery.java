@@ -1,8 +1,10 @@
 package com.wdbyte.network.icp;
 
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter.Feature;
@@ -21,13 +23,16 @@ import org.apache.hc.core5.http.ContentType;
 public class IcpQuery {
 
     public static void main(String[] args) {
-        String queryInfo = "freebuf.com";
+        String queryInfo = "深圳市腾讯计算机系统有限公司";
+        List<IcpInfo> icpInfoList = getIcpInfos(queryInfo);
+        System.out.println(JSON.toJSONString(icpInfoList, Feature.PrettyFormat));
+    }
+
+    public static List<IcpInfo> getIcpInfos(String queryInfo) {
         // 获取 TOKEN
         String token = new IcpQuery().getToken();
-
         CheckImage checkImage = null;
         String sign = null;
-
         // 最多尝试3次
         for (int i = 0; i < 3; i++) {
             // 获取验证码
@@ -42,8 +47,7 @@ public class IcpQuery {
             }
         }
         // 查询备案信息
-        List<IcpInfo> icpInfoList = new IcpQuery().getIcpInfo(token, checkImage.getUuid(), sign, queryInfo);
-        System.out.println(JSON.toJSONString(icpInfoList, Feature.PrettyFormat));
+        return new IcpQuery().getIcpInfo(token, checkImage.getUuid(), sign, queryInfo);
     }
 
     /**
@@ -136,10 +140,10 @@ public class IcpQuery {
      * @param token
      * @param uuid
      * @param sign
-     * @param domain
+     * @param queryInfo
      * @return
      */
-    public List<IcpInfo> getIcpInfo(String token, String uuid, String sign, String domain) {
+    public List<IcpInfo> getIcpInfo(String token, String uuid, String sign, String queryInfo) {
         String url = "https://hlwicpfwc.miit.gov.cn/icpproject_query/api/icpAbbreviateInfo/queryByCondition";
         HashMap<String, String> headerMap = new HashMap<>();
         headerMap.put("Accept", "application/json, text/plain, */*");
@@ -150,15 +154,25 @@ public class IcpQuery {
         headerMap.put("uuid", uuid);
         headerMap.put("sign", sign);
 
-        HashMap<String, String> postDataMap = new HashMap<>();
-        postDataMap.put("pageNum", "");
-        postDataMap.put("pageSize", "");
-        postDataMap.put("unitName", domain);
-
-        log.info("开始查询备案信息，params:{}", domain);
-        String response = HttpUtil.post(url, JSON.toJSONString(postDataMap), ContentType.APPLICATION_JSON, headerMap);
-        List<IcpInfo> icpInfoList =  JSON.parseObject(response).getJSONObject("params").getJSONArray("list").toList(IcpInfo.class);
-        log.info("查询结果：{}", JSON.toJSONString(icpInfoList));
+        int currentPage = 0;
+        String lastPage = "0";
+        List<IcpInfo> icpInfoList = new ArrayList<>();
+        do {
+            currentPage++;
+            HashMap<String, String> postDataMap = new HashMap<>();
+            postDataMap.put("pageNum", ""+currentPage);
+            postDataMap.put("pageSize", "40");
+            postDataMap.put("unitName", queryInfo);
+            log.info("开始查询备案信息，postDataMap:{}", postDataMap);
+            String response = HttpUtil.post(url, JSON.toJSONString(postDataMap), ContentType.APPLICATION_JSON, headerMap);
+            lastPage = JSON.parseObject(response).getJSONObject("params").getString("lastPage");
+            icpInfoList.addAll(JSON.parseObject(response).getJSONObject("params").getJSONArray("list").toList(IcpInfo.class));
+            try {
+                Thread.sleep(new Random().nextInt(5) * 1000);
+            } catch (InterruptedException e) {
+                log.error("sleep InterruptedException....");
+            }
+        } while (Integer.valueOf(lastPage) > currentPage);
         return icpInfoList;
     }
 

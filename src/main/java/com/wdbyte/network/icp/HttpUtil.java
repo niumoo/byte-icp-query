@@ -48,7 +48,7 @@ public class HttpUtil {
         } catch (IOException | ParseException e) {
             e.printStackTrace();
         }
-        log.info("http post url:{}, response:{}", url, result);
+        log.info("http post url:{}", url);
         return result;
     }
 }
