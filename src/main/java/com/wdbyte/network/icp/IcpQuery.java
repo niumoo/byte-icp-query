@@ -163,6 +163,7 @@ public class IcpQuery {
             postDataMap.put("pageNum", ""+currentPage);
             postDataMap.put("pageSize", "40");
             postDataMap.put("unitName", queryInfo);
+            postDataMap.put("serviceType", "1");
             log.info("开始查询备案信息，postDataMap:{}", postDataMap);
             String response = HttpUtil.post(url, JSON.toJSONString(postDataMap), ContentType.APPLICATION_JSON, headerMap);
             lastPage = JSON.parseObject(response).getJSONObject("params").getString("lastPage");
